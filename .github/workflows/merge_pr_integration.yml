@@ -1,0 +1,52 @@
+name: Merging PR 
+
+on:
+  pull_request:
+    branches: [ "main" ]
+
+  workflow_dispatch:
+
+# change to custom runner
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    environment: development
+
+    steps:
+      - name: Copying repository files
+      - uses: actions/checkout@v3
+
+      - name: Run a one-line script
+        run: echo Hello, world!
+
+      - name: Run a multi-line script
+        run: |
+          echo Add other actions to build,
+          echo test, and deploy your project.
+  
+  benchmarking:
+    runs-on: ubuntu-latest
+    environment: staging
+
+    steps:
+      - name: 
+
+
+  production:
+  runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+
+
+# bug checks
+# compilation
+# linting/formatting
+# Ament_flake8 
+# Ament_lint_cmake 
+# Ament_xmllint 
+# Black  
+# Clang-tidy 
+# Isort 
+# code coverage
+# unit tests
