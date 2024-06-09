@@ -1,23 +1,61 @@
-name: Compiling Code into Package & Uploading to Registry
+name: Compiling Code into Container & Uploading to Repository
 
 # needs approval by employee
 on:
   workflow_call:
-  
+  workflow_dispatch:
+
+
 # change to custom runner
 jobs:
   # Compiles/builds container image and stores in github packages
   build:
-    runs-on: ubuntu-latest
+    runs-on: nvidia-jetson
     permissions:
       contents: read
       packages: write
       id-token: write
+    
     steps:
-      - name: Copies repository files
-      - uses: actions/checkout@v3
-      - name: Compile 
+      - name: Clean up artifacts from last run
+        id: clean
+      - run: |
+        cd /var/lib/docker/overlay2
+        grep ...
 
-      - name: Build container
-      - run: docker build -t my_jetson_test .
-    # clean up by removing the docker build
+      - name: Copies repository files
+        id: checkout
+      - uses: actions/checkout@v4
+      
+      - name: Compiling new files in container
+        id: compile
+      - run: |
+        cd /AppliedAI/23-I-12_SysArch/Experiments/valery_tests/ros2_ws/src/node_test/
+        rosdep install --from-paths src -y --ignore-src
+        colcon build --packages-select custom_interface
+        colcon build --packages-select node_test
+
+      - name: Build docker image
+        id: build
+      - run: |
+        cd ~/ContainerFolder
+        docker build -t my_jetson_test_${{ branch_name }} .
+
+      - name: Upload docker image artifact to repository
+        id: upload
+      - uses: actions/upload-artifact@v4
+        with:
+          name: built_container_${{ branch.name }}_$(date +%s) .
+          path: /var/lib/docker/overlay2/my_jetson_test
+          retention-days: 2
+      
+      - name: Output artifact ID
+        run:  echo 'Artifact ID is ${{ steps.upload.outputs.artifact-id }}'
+
+    # branch specific?
+    # upload, keep artifact here and overwrite if it gets built again
+    # name should be dynamic for artifact
+    # otherwise just name based on branch name
+    # when i compile where do those files go? if they stay in directory we shilling
+
+# echo output for the id you need to run the docker container

@@ -1,0 +1,109 @@
+name: On Push
+
+on:
+  push:
+    branches:
+      - '**'
+      - '!master'
+    paths:
+      - '**.cpp'
+      - '**.py'
+  workflow_call:
+
+# change to custom runner
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    permissions:
+      checks: write
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v3
+      with:
+        python-version: "3.8"
+    - name: Install dependencies
+      run:
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+    - name: Lint with flake8
+      run: |
+        # stop the build if there are Python syntax errors or undefined names
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
+        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+    - name: Test with pytest
+      run: |
+        python3 -m pytest --verbose --junit-xml=junit.xml
+    - name: Publish Test Report
+      uses: mikepenz/action-junit-report@v3
+      if: success() || failure() # always run even if the previous step fails
+      with:
+        report_paths: '**/junit.xml'
+        detailed_summary: true
+        include_passed: true
+
+  lintC:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: 
+
+  lintP:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Install requirements
+      run: pip3 install --quite --requirement requirements.txt
+    
+    - name: Lint with pylint
+      run: |
+        pylint --disable=C0301 --disable=C0326 *.py
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+    
+    - name: Lint with flake8
+      run: |
+        # stop the build if there are Python syntax errors or undefined names
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
+        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+    - name: Test with pytest
+      run: |
+        pytest
+
+    -name: Run unit tests
+      run: |
+        python3 -m unittest --verbose --failfast   
+  
+
+  compile:
+    needs: [lint]
+    runs-on: ubuntu-latest
+    environment: development
+
+    steps:
+      - name: Checkout repository files
+      - uses: actions/checkout@v3
+      with:
+        repository: # apache/tomcat
+        ref: master
+        path: ./tomcat
+
+      - name: Copying repository files
+      - run: cp -v 
+
+      - name: Compile 
+
+# bug checks
+# compilation
+# linting/formatting
+# Ament_flake8 
+# Ament_lint_cmake 
+# Ament_xmllint 
+# Black  
+# Clang-tidy 
+# Isort 
+# code coverage
+# unit tests
+# runtime errors
