@@ -1,0 +1,23 @@
+name: Compiling Code into Package & Uploading to Registry
+
+# needs approval by employee
+on:
+  workflow_call:
+  
+# change to custom runner
+jobs:
+  # Compiles/builds container image and stores in github packages
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    steps:
+      - name: Copies repository files
+      - uses: actions/checkout@v3
+      - name: Compile 
+
+      - name: Build container
+      - run: docker build -t my_jetson_test .
+    # clean up by removing the docker build

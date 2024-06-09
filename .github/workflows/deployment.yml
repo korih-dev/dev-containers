@@ -1,0 +1,64 @@
+name: Deploying Container
+
+# needs approval by employee
+on:
+  workflow_dispatch:
+  workflow_call:
+
+env:
+  REGISTRY: dockerhub.io
+  IMAGE_NAME: ${{ github.repository }}
+
+# change to custom runner
+jobs:
+  delivery:
+    uses: ./.github/workflows/delivery.yml
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+  
+  staging:
+    needs: [delivery]
+    permissions:
+      packages: read
+    steps:
+      - name: Pull new package from Github repository
+
+  benchmarking:
+    needs: [staging]
+    runs-on: ubuntu-latest
+    with:
+      environment: production
+    permissions:
+      checks: write
+    steps:
+      - name: Run sample workload
+      - run: sudo docker run ${container.name} --runtime nvidia -it --rm --network=host custom_container -v /dir/:/dir/
+      - name: Copy/publish benchmarking log file w/ metadata
+
+  # publishing to docker hub (needs approval)
+  publishing:
+    needs: [benchmarking]
+    runs-on: ubuntu-latest
+    with:
+      environment: staging
+    permissions:
+      id-token: write
+      checks: write
+    steps:
+    - name: Publish image to docker hub
+    - run: docker push dockerhub.com/${{ secrets.GH_PROJECT_ID }}/${{ env.APPLICATION_NAME }}:latest
+
+
+  # copy the new repository artifact to the jetson and replace the old one
+  deploying:
+    needs: [benchmarking]
+    runs-on: ubuntu-latest
+    with:
+      environment: production
+    permissions:
+      packages: read
+    steps:
+    - name: Pull repository artifact to Jetson
+    - run: git pull
