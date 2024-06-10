@@ -1,61 +1,72 @@
-name: Compiling Code into Container & Uploading to Repository
+# Compiling Code into Container & Uploading to Repository
+name: Delivery
 
-# needs approval by employee
 on:
   workflow_call:
+    inputs:
+      branch:
+        required: true
+        type: string
   workflow_dispatch:
+    # enter separate questions here...
 
+defaults:
+  run:
+    shell: bash
 
-# change to custom runner
 jobs:
-  # Compiles/builds container image and stores in github packages
+  compile:
+    runs-on: nvidia-jetson
+    steps:
+      - name: Clean up artifacts from last run
+      # grep logic here to get all docker image names that don't include main/original and remove
+      - run: |
+        cd /var/lib/docker/overlay2
+        grep ...
+      - name: Compiling new files in container
+      - run: |
+        cd ~/AppliedAI/23-I-12_SysArch/Experiments/valery_tests/ros2_ws/src/node_test/
+        rosdep install --from-paths src -y --ignore-src
+        colcon build --packages-select custom_interface
+        colcon build --packages-select node_test
+  
   build:
     runs-on: nvidia-jetson
+    outputs:
+      container_name: ${{ steps.set-container-name.outputs.container_name }}
+    needs: compile
+    steps:
+      - name: Build docker image
+        id: set-container-name
+        # container_name="container-${{ github.sha }}"
+      - run: |
+        cd ~/ContainerFolder
+        container_name="container-${{ github.events.inputs.branch }}-$(date +%s)"
+        docker build -t ${ container_name } .
+        echo "container_name=${container_name}" >> "$GITHUB_OUTPUT"
+        run echo "Successfully built container: ${ container_name }"
+        run echo "To manually run the docker container, use the command:" 
+        run echo "sudo docker run ${ container_name } --runtime nvidia -it --rm --network=host custom_container -v /dir/:/dir/"
+    
+  upload:
+    outputs:
+      artifact_id: ${{ steps.upload.outputs.artifact-id }}
+    needs: build
     permissions:
       contents: read
       packages: write
       id-token: write
-    
     steps:
-      - name: Clean up artifacts from last run
-        id: clean
-      - run: |
-        cd /var/lib/docker/overlay2
-        grep ...
-
-      - name: Copies repository files
-        id: checkout
-      - uses: actions/checkout@v4
-      
-      - name: Compiling new files in container
-        id: compile
-      - run: |
-        cd /AppliedAI/23-I-12_SysArch/Experiments/valery_tests/ros2_ws/src/node_test/
-        rosdep install --from-paths src -y --ignore-src
-        colcon build --packages-select custom_interface
-        colcon build --packages-select node_test
-
-      - name: Build docker image
-        id: build
-      - run: |
-        cd ~/ContainerFolder
-        docker build -t my_jetson_test_${{ branch_name }} .
-
       - name: Upload docker image artifact to repository
         id: upload
       - uses: actions/upload-artifact@v4
         with:
-          name: built_container_${{ branch.name }}_$(date +%s) .
+          name: $ {{ steps.set-container-name.outputs.container_name }}
+          # verify this path is correct and what is being uploaded here actually is a container
           path: /var/lib/docker/overlay2/my_jetson_test
-          retention-days: 2
-      
+          retention-days: 21
+          if-no-files-found: error
       - name: Output artifact ID
-        run:  echo 'Artifact ID is ${{ steps.upload.outputs.artifact-id }}'
-
-    # branch specific?
-    # upload, keep artifact here and overwrite if it gets built again
-    # name should be dynamic for artifact
-    # otherwise just name based on branch name
-    # when i compile where do those files go? if they stay in directory we shilling
-
-# echo output for the id you need to run the docker container
+        run: |
+        echo "artifact_id=${{ steps.upload.outputs.artifact-id }}" >> "$GITHUB_OUTPUT"
+        run echo "Successfully uploaded container artifact: ${{ steps.upload.outputs.artifact-id }}"

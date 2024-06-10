@@ -3,98 +3,183 @@ name: Deploying Container
 # needs approval by employee
 on:
   workflow_call:
+    inputs:
+      performance-test:
+        required: false
+        type: bool
+        default: true
+      deployment:
+        required: false
+        type: bool
+        default: true
+      container_name:
+        required: true
+        type: string
+      artifact_id:
+        required: true
+        type: string
+
   workflow_dispatch:
+    inputs: 
+      performance-test:
+        description: 'Would you like to run a performance test on the container?'
+        required: false
+        default: true
+        type: boolean
+      deployment:
+        description: 'Would you like to review the performance report before updating the official image?'
+        required: false
+        default: true
+        type: boolean
+      container_name:
+        description: 'Name of the container to deploy (use latest if unsure): '
+        required: false
+        type: string
+      artifact_id:
+        description: 'Artifact ID to use (use latest if unsure): '
+        required: false
+        type: string
+      emulation:
+        description: 'Make an additional image for the x86 platform?'
+        required: false
+        type: boolean
+        default: false
+
+defaults:
+  run:
+    shell: bash
 
 env:
   REGISTRY: dockerhub.io
   IMAGE_NAME: ${{ github.repository }}
 
-# change to custom runner
+# something must be set so we know what to run
 jobs:
-  delivery:
-    uses: ./.github/workflows/delivery.yml
-    permissions:
-      contents: read
-      packages: write
-      id-token: write
-  
   staging:
-    needs: [delivery]
+    runs-on: nvidia-jetson
     permissions:
       packages: read
+    outputs:
+      artifact_id: ${{ steps.set-artifact-id.outputs.artifact_id }}
     steps:
-      - name: Pull new package from Github repository
-
-      - name: Login to Docker Registry ${{ env.REGISTRY }}
-        uses: docker/login-action@v2.1.0
+      - name: Pull latest package from Github repository if not provided
+      id: set-artifact-id
+      run: |
+        if [ -z "${{ github.event.inputs.artifact_id }}" ]; then
+          echo "artifact_id=$(gh api -X GET /repos/${{ github.repository }}/actions/artifacts | jq -r '.artifacts[0].id')" >> $GITHUB_ENV
+          echo "artifact_id=${{ env.artifact_id }}" >> $GITHUB_OUTPUT
+        else
+          echo "artifact_id=${{ github.event.inputs.artifact_id }}" >> $GITHUB_OUTPUT
+        fi
+      - name: Download artifact
+        uses: actions/download-artifact@v2
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      
-      - name: Extract Docker metadata
-        id: meta
-        uses: docker/metadata-action@4.4.0
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-      
-      - name: Sign and publish Docker Image
-        env:
-          COSIGN_EXPERIMENTAL: "true"
-        run: echo "${{ steps.meta.outputs.tags }}" | xargs -I {} cosign sign {}@${{ steps.build-and-push.outputs.digest }}
+          name: ${{ steps.set-artifact-id.outputs.artifact_id }}
+      - name: Display structure of downloaded files
+        run: ls -R your/destination/dir
+      - name: Load Docker image from artifact
+        run: |
+          tar -xvf ${{ steps.set-artifact-id.outputs.artifact_id }}.tar.gz -O | docker load
+          echo "The artifact has been loaded into docker successfully"
+      # if both empty, default to container
+      # for container, check QEMU is checked, if so, also make an additional for x86 platform
 
+      - name: Create QEMU container 
 
   benchmarking:
     needs: [staging]
-    runs-on: ubuntu-latest
-    with:
-      environment: production
+    runs-on: nvidia-jetson
     permissions:
       checks: write
     steps:
       - name: Run sample workload
       - run: sudo docker run ${container.name} --runtime nvidia -it --rm --network=host custom_container -v /dir/:/dir/
       - name: Copy/publish benchmarking log file w/ metadata
+      - run: |
+        echo "Benchmarking completed, please check the Github Actions Dashboard to view the log report"
+      # cat output from log file 
 
-  # publishing to docker hub (needs approval)
+  # publishing to docker hub (needs approval) based on the performance report or not
+  # could make issue that needs to be closed or updated to confirm
   publishing:
     needs: [benchmarking]
-    runs-on: ubuntu-latest
-    with:
-      environment: staging
+    runs-on: nvidia-jetson
     permissions:
       id-token: write
       checks: write
     steps:
-    - name: Publish image to docker hub
-    - run: docker push dockerhub.com/${{ secrets.GH_PROJECT_ID }}/${{ env.APPLICATION_NAME }}:latest
-
-
-  # copy the new repository artifact to the jetson and replace the old one
-  deploying:
-    needs: [benchmarking]
-    runs-on: ubuntu-latest
-    with:
-      environment: production
-    permissions:
-      packages: read
-    steps:
-    - name: Pull repository artifact to Jetson
-    - run: git pull
-
+      - name: Login to Docker Registry ${{ env.REGISTRY }}
+        uses: docker/login-action@v2.1.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@4.4.0
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+      - name: Build and push Docker image
         id: build-and-push
         uses: docker/build-push-action@v4.0.0
         with:
           context: .
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          platforms: linux/amd64,linux/arm64
-  
-  # branch specific?
-  # check if the image name already exists, otherwise
-  # we can pull from the thing
+      - name: Publish image to Docker Hub
+        run: |
+        docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+        echo "In order to run the Docker container on another machine, use the the docker image id: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest and follow the guide at: (website tbd)"
 
-# echo output for what you need to pull and run the docker container on another local machine
-# also echo output/cat the file for log results + live prometheus link
+
+  # now that you have chosen either an artifact or image to be the main one, this one should be retagged, all others should be removed except bases and should be as easy as docker run...
+  # or possibly update the bash aliases file
+  # copy the new repository artifact to the jetson and replace the old one
+  deploying:
+    runs-on: nvidia-jetson
+    with:
+      environment: production
+    permissions:
+      packages: read
+    steps:
+      id: build-and-push
+      uses: docker/build-push-action@v4.0.0
+      with:
+        context: .
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+
+  explore:
+    runs-on: nvidia-jetson
+    steps:
+      - name: Check current directory
+        run: pwd
+
+      - name: List files in current directory
+        run: ls -la
+
+      - name: List root directory
+        run: ls -la /
+
+      - name: List runner's work directory
+        run: ls -la /home/runner/work
+
+      - name: List runner's temp directory
+        run: ls -la /home/runner/_temp
+
+      - name: List runner's tool directory
+        run: ls -la /home/runner/_tool
+
+      - name: List GitHub workspace directory
+        run: ls -la ${{ github.workspace }}
+
+      - name: Show environment variables
+        run: env
+
+  cleanup:
+    runs-on: nvidia-jetson
+    steps:
+      - name: Clean previous runs
+        run: |
+          rm -rf /home/runner/_temp/* || true
+          rm -rf /home/runner/work/${{ github.repository }}/* || true

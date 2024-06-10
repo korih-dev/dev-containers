@@ -2,13 +2,16 @@ name: On Push
 
 on:
   push:
-    branches:
-      - '**'
-      - '!master'
+    branches-ignore:
+      - main
     paths:
       - '**.cpp'
       - '**.py'
   workflow_call:
+
+defaults:
+  run:
+    shell: bash
 
 # change to custom runner
 jobs:
