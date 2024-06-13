@@ -1,102 +1,92 @@
 name: On Push
-
+run-name: ${{ github.actor }} is testing out GitHub Actions 🚀
 on:
   push:
     branches-ignore:
       - main
-    paths:
-      - '**.cpp'
-      - '**.py'
+    # paths:
+    #   - '**.cpp'
+    #   - '**.py'
   workflow_call:
 
-defaults:
-  run:
-    shell: bash
-
-# change to custom runner
 jobs:
-  build:
-
-    runs-on: ubuntu-latest
-    permissions:
-      checks: write
-    steps:
-    - uses: actions/checkout@v3
-    - name: Set up Python 3.8
-      uses: actions/setup-python@v3
-      with:
-        python-version: "3.8"
-    - name: Install dependencies
-      run:
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-    - name: Lint with flake8
+  Explore-GitHub-Actions:
+  runs-on: nvidia-jetson
+  steps:
+    - run: echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
+    - run: echo "🐧 This job is now running on a ${{ runner.os }} server hosted by GitHub!"
+    - run: echo "🔎 The name of your branch is ${{ github.ref }} and your repository is ${{ github.repository }}."
+    - name: Check out repository code
+      uses: actions/checkout@v4
+    - run: echo "💡 The ${{ github.repository }} repository has been cloned to the runner."
+    - run: echo "🖥️ The workflow is now ready to test your code on the runner."
+    - name: List files in the repository
       run: |
-        # stop the build if there are Python syntax errors or undefined names
-        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-        # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
-        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-    - name: Test with pytest
-      run: |
-        python3 -m pytest --verbose --junit-xml=junit.xml
-    - name: Publish Test Report
-      uses: mikepenz/action-junit-report@v3
-      if: success() || failure() # always run even if the previous step fails
-      with:
-        report_paths: '**/junit.xml'
-        detailed_summary: true
-        include_passed: true
+        ls ${{ github.workspace }}
+    - run: echo "🍏 This job's status is ${{ job.status }}."
+  # build:
+  #   runs-on: nvidia-jetson
+  #   permissions:
+  #     checks: write
+  #   steps:
+  #   - uses: actions/checkout@v4
 
-  lintC:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v3
-    - name: 
+  # lintCpp:
+  #   runs-on: nvidia-jetson
 
-  lintP:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v3
+  # lintPython:
+  #   runs-on: nvidia-jetson
 
-    - name: Install requirements
-      run: pip3 install --quite --requirement requirements.txt
+  #   - name: Install requirements
+  #     run:
+  #       if [ -f requirements.txt ]; then pip3 install -r requirements.txt; fi
     
-    - name: Lint with pylint
-      run: |
-        pylint --disable=C0301 --disable=C0326 *.py
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+  #   - name: Lint with pylint
+  #     run: |
+  #       pylint --disable=C0301 --disable=C0326 *.py
+  #       if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
     
-    - name: Lint with flake8
-      run: |
-        # stop the build if there are Python syntax errors or undefined names
-        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-        # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
-        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-    - name: Test with pytest
-      run: |
-        pytest
+  #   - name: Lint with flake8
+  #     run: |
+  #       # stop the build if there are Python syntax errors or undefined names
+  #       flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+  #       # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
+  #       flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
-    -name: Run unit tests
-      run: |
-        python3 -m unittest --verbose --failfast   
+  #   - name: Test with pytest
+  #     run: |
+  #       python3 -m pytest --verbose --junit-xml=junit.xml
+
+  #   - name: Publish Test Report
+  #     uses: mikepenz/action-junit-report@v3
+  #     if: success() || failure() # always run even if the previous step fails
+  #     with:
+  #       report_paths: '**/junit.xml'
+  #       detailed_summary: true
+  #       include_passed: true
+
+  #   -name: Run unit tests
+  #     run: |
+  #       python3 -m unittest --verbose --failfast   
   
 
-  compile:
-    needs: [lint]
-    runs-on: ubuntu-latest
-    environment: development
+  # compile:
+  #   needs: [lint]
+  #   runs-on: nvidia-jetson
+  #   environment: development
 
-    steps:
-      - name: Checkout repository files
-      - uses: actions/checkout@v3
-      with:
-        repository: # apache/tomcat
-        ref: master
-        path: ./tomcat
+  #   steps:
+  #     - name: Checkout repository files
+  #     - uses: actions/checkout@v3
+  #     with:
+  #       repository: # apache/tomcat
+  #       ref: master
+  #       path: ./tomcat
 
-      - name: Copying repository files
-      - run: cp -v 
+  #     - name: Copying repository files
+  #     - run: cp -v 
 
-      - name: Compile 
+  #     - name: Compile 
 
 # bug checks
 # compilation

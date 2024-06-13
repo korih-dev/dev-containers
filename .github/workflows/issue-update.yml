@@ -1,0 +1,6 @@
+name: Issue Updating
+on: 
+  issues:
+    types: 
+      - labeled
+      - unpinned
