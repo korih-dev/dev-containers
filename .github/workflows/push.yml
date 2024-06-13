@@ -2,8 +2,8 @@ name: On Push
 run-name: ${{ github.actor }} is testing out GitHub Actions 🚀
 on:
   push:
-    branches-ignore:
-      - main
+    # branches-ignore:
+    #   - main
     # paths:
     #   - '**.cpp'
     #   - '**.py'
