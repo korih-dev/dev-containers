@@ -41,11 +41,6 @@ on:
         description: 'Enter the container image/Artifact ID if remote (ex. latest, id, artifact_id)'
         required: false
         type: string
-      emulation:
-        description: 'Make an additional image for the x86 platform?'
-        required: false
-        type: boolean
-        default: false
 
 jobs:
   staging:
@@ -110,12 +105,6 @@ jobs:
         run: |
           tar -xvf ${{ IDENTIFIER }} -O | docker load
           echo "The artifact has been loaded into docker successfully"
-
-      - name: Create QEMU container 
-        run: |
-          if [ "${{ github.event.inputs.emulation }}" == "true"]; then
-            # qemu emulation here...
-          fi
 
 # ensure that the tags and identifier work correctly...
 
