@@ -30,6 +30,13 @@ on:
         choices:
           - remote
           - local
+      source-type:
+        description: 'Would you like to use an artifact ID or container image?'
+        required: true
+        type: choice
+        choices:
+          - artifact
+          - container
       identifier:
         description: 'Enter the container image/Artifact ID if remote (ex. latest, id, artifact_id)'
         required: false
@@ -47,57 +54,78 @@ jobs:
       packages: read
     outputs:
       identifier: ${{ steps.find-source.outputs.identifier }}
-      artifact_id: ${{ steps.set-artifact-id.outputs.artifact_id }}
+      source_type: ${{ steps.find-source.outputs.source }}
     steps:
       - name: Determine staging source
-      id: find-source
-      run: |
-        if [ -z "${{ github.events.inputs.source }}"]; then
-          echo "container_name=$container_name" >> $GITHUB_ENV
-          echo "::set-output name=container_name::$SOURCE"
-          echo "SOURCE=local" >> $GITHUB_ENV
-          echo "::set-output name="
-        fi
-        ~/Container/find.sh ${{ github_eve }} ${{  }} ${{  }}
-        echo "source found: "
+        id: find-source
+        # if source provided, not automatic, assign and find local or remote
+        run: |
+          if [ -n "${{ github.event.inputs.source }}" ]; then
+            SOURCE="${{ github.event.inputs.source }}"
+          else
+            SOURCE="local container"
+            IDENTIFIER="${{ github.events.inputs.container_name }}"
+          fi
 
-      - name: Load Container
+          if [ "${SOURCE}" == "local" ]; then
+            if [ "${github.event.inputs.source-type}" == "artifact" ]
+              SOURCE="local artifact"
+              IDENTIFIER="image.tar.gz"
+            else
+              # only can be local
+              SOURCE="local container"
+              IDENTIFIER="container-"
+            fi
+          fi
 
-      - name: Load Artifact
+          if [ "${ SOURCE }" == "remote" ]; then
+            if [ "${github.event.inputs.source-type}" == "artifact"]
+              SOURCE="remote artifact"
+              IDENTIFIER="${{ github.event.inputs.identifier }}"
+            else
+              SOURCE="remote container"
+              IDENTIFIER="${{ github.event.inputs.identifier }}"
+            fi
+          fi
+
+        - name: Output results
+          run: |
+            echo "identifier=${{ steps.find-source.outputs.identifier }}" >> "$GITHUB_OUTPUT"
+            echo "source_type=${{ steps.find-source.outputs.source_type }}" >> "$GITHUB_OUTPUT"
+            echo "source found: ${{SOURCE}}"
+            echo "identifier found: ${{ IDENTIFIER }}"
 
       - name: Download Container
-
-      - name: Download Artifact
+        run: |
+          if [ "${SOURCE}"" == "remote container" ]; then
+            docker pull ${{ IDENTIFIER }}
+          fi
 
       - name: Download artifact
         uses: actions/download-artifact@v2
         with:
-          name: ${{ steps.set-artifact-id.outputs.artifact_id }}
-    
-      - name: Display structure of downloaded files
-        run: ls -R your/destination/dir
-      - name: Load Docker image from artifact
+          name: ${{ IDENTIFIER }}
+
+      - name: Load Artifact
         run: |
-          tar -xvf ${{ steps.set-artifact-id.outputs.artifact_id }}.tar.gz -O | docker load
+          tar -xvf ${{ IDENTIFIER }} -O | docker load
           echo "The artifact has been loaded into docker successfully"
-      # if both empty, default to container
-      # for container, check QEMU is checked, if so, also make an additional for x86 platform
 
       - name: Create QEMU container 
+        run: |
+          if [ "${{ github.event.inputs.emulation }}" == "true"]; then
+            # qemu emulation here...
+          fi
 
-  # call benchmkaring separately 
+# ensure that the tags and identifier work correctly...
+
   benchmarking:
+    runs-on: self-hosted
     needs: [staging]
-    runs-on: nvidia-jetson
-    permissions:
-      checks: write
-    steps:
-      - name: Run sample workload
-      - run: sudo docker run ${container.name} --runtime nvidia -it --rm --network=host custom_container -v /dir/:/dir/
-      - name: Copy/publish benchmarking log file w/ metadata
-      - run: |
-        echo "Benchmarking completed, please check the Github Actions Dashboard to view the log report"
-      # cat output from log file 
+    uses: ./github/workflows/benchmarking.yml
+    with:
+      performance-test: ${{ github.event.inputs.performance-test || 'true' }}
+
 
   # publishing to docker hub (needs approval) based on the performance report or not
   # could make issue that needs to be closed or updated to confirm

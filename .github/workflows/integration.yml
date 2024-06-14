@@ -30,17 +30,17 @@ on:
 
 jobs:
   copying_branch:
-    runs-on: nvidia-jetson
+    runs-on: self-hosted
     steps:
         - name: Checkout branch
         - uses: actions/checkout@v4
           with:
             ref: ${{ github.event.inputs.branch }}
         - name: Print branch
-          run: echo "Checked out branch: ${{ github.event.inputs.branch || 'main' }}"
+          run: echo "Checked out branch: ${{ github.event.inputs.branch || 'main' }}
   
   delivery:
-    runs-on: nvidia-jetson
+    runs-on: self-hosted
     needs: copying_branch
     outputs:
       container_name: ${{ steps.delivery.outputs.container_name }}
@@ -53,10 +53,8 @@ jobs:
           branch: ${{ github.event.inputs.branch || 'main' }}
 
   deployment:
-    runs-on: nvidia-jetson
+    runs-on: self-hosted
     needs: delivery
-    outputs:
-      
     uses: ./github/workflows/deployment.yml
     with:
       performance-test: ${{ github.event.inputs.performance-test}}

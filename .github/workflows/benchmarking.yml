@@ -1,12 +1,18 @@
-delivery:
-  runs-on: nvidia-jetson
-  needs: copying_branch
-  outputs:
-    container_name: ${{ steps.delivery.outputs.container_name }}
-    artifact_id: ${{ steps.delivery.outputs.artifact_id }}
-  steps:
-    - name: Call delivery workflow
-      id: delivery
-      uses: ./.github/workflows/delivery.yml
-      with:
-        branch: ${{ github.event.inputs.branch || 'main' }}
+name: Benchmarking new container
+
+on:
+  workflow_dispatch:
+
+  workflow_call:
+  
+    
+    runs-on: nvidia-jetson
+    permissions:
+      checks: write
+    steps:
+      - name: Run sample workload
+      - run: sudo docker run ${container.name} --runtime nvidia -it --rm --network=host custom_container -v /dir/:/dir/
+      - name: Copy/publish benchmarking log file w/ metadata
+      - run: |
+        echo "Benchmarking completed, please check the Github Actions Dashboard to view the log report"
+      # cat output from log file 

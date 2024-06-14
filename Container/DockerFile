@@ -1,12 +1,13 @@
 # docker pull nvcr.io/nvidia/l4t-jetpack:r35.3.1
-# jetpack version should be 5.1.1
 FROM JetPack-L4T:latest
 
 # not sure if cuda version is matched... https://github.com/dusty-nv/jetson-containers/blob/master/packages/cuda/cuda/config.py
 ENV CUDA_VERSION=12.2.0 
-ENV CUDNN_VERSION=8.5?
-ENV TENSORRT_VERSION=8.6?
-ENV PIP_INDEX_URL=
+ENV CUDNN_VERSION=8.5
+ENV TENSORRT_VERSION=8.6
+ENV PIP_INDEX_URL=N/A
+ENV JETPACK_VERSION=5.1.1
+ENV L4T_VERSION=35.3.1
 
 COPY . /scripts
 
@@ -90,7 +91,6 @@ ENV ZED_SDK_MINOR=0
 ENV LOGNAME=root
 ENV DEBIAN_FRONTEND=noninteractive
 
-
 # ros2
 ENV ROS_DISTRO=foxy
 ENV ROS_ROOT=/opt/ros/${ROS_DISTRO}
@@ -103,4 +103,5 @@ RUN /scripts/install-ros2.sh
 
 # will likely need to add to bashrc before using, steps for python to do that?, or just try running hello world example first
 
-# docker build -t my_jetson_test .
+# jtop
+RUN pip3 install -U jetson-stats
