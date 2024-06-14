@@ -1,5 +1,5 @@
 # Compiling Code into Container & Uploading to Repository
-name: Delivery
+name: Delivery Pipeline
 
 on:
   workflow_call:
@@ -8,47 +8,74 @@ on:
         required: true
         type: string
   workflow_dispatch:
-    # enter separate questions here...
-
-defaults:
-  run:
-    shell: bash
+    inputs:
+        branch:
+          description: 'Which branch you would like to run the delivery pipeline on?'
+          required: false
+          type: string
+          default: 'main'
 
 jobs:
   compile:
-    runs-on: nvidia-jetson
+    runs-on: self-hosted
     steps:
-      - name: Clean up artifacts from last run
-      # grep logic here to get all docker image names that don't include main/original and remove
-      - run: |
-        cd /var/lib/docker/overlay2
-        grep ...
+      - run: echo "The job was automatically triggered by a ${{ github.event_name }} event."
+      - run: echo "The name of your branch is ${{ github.ref }} and your repository is ${{ github.repository }}."
+      - run: echo "BRANCH=${{ github.event.inputs.branch }}" >> $GITHUB_ENV
+
+      - name: List Docker images
+        id: list_images
+        run: |
+          images=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep "container-${BRANCH}-")
+          if [[ -n "$images" ]]; then
+            echo "Found images:"
+            echo "$images"
+            echo "::set-output name=images::$images"
+          else
+            echo "No images found for branch: ${BRANCH}"
+          fi
+
+      - name: Remove Docker images
+        if: steps.list_images.outputs.images != ''
+        run: |
+          images="${{ steps.list_images.outputs.images }}"
+          for image in $images; do
+            echo "Removing image: $image"
+            docker rmi "$image"
+          done
+
       - name: Compiling new files in container
       - run: |
-        cd ~/AppliedAI/23-I-12_SysArch/Experiments/valery_tests/ros2_ws/src/node_test/
+        # cd ${{ github.workspace }}/23-I-12_SysArch/Experiments/valery_tests/ros2_ws/src/node_test/
+        cd ~/AppliedAI//23-I-12_SysArch/Experiments/valery_tests/ros2_ws/src/node_test/
         rosdep install --from-paths src -y --ignore-src
         colcon build --packages-select custom_interface
         colcon build --packages-select node_test
   
   build:
-    runs-on: nvidia-jetson
+    runs-on: self-hosted
     outputs:
       container_name: ${{ steps.set-container-name.outputs.container_name }}
     needs: compile
     steps:
       - name: Build docker image
         id: set-container-name
-        # container_name="container-${{ github.sha }}"
       - run: |
         cd ~/ContainerFolder
-        container_name="container-${{ github.events.inputs.branch }}-$(date +%s)"
+        container_name="container-${{ github.events.inputs.branch }}-${{ github.run_number }}"
         docker build -t ${ container_name } .
         echo "container_name=${container_name}" >> "$GITHUB_OUTPUT"
         run echo "Successfully built container: ${ container_name }"
         run echo "To manually run the docker container, use the command:" 
         run echo "sudo docker run ${ container_name } --runtime nvidia -it --rm --network=host custom_container -v /dir/:/dir/"
-    
+      - name: Save Docker image as tarball
+        id: save_image
+        run: |
+          docker save ${ container_name } | gzip > ${ container_name }.tar.gz
+          echo "::set-output name=artifact_path::image.tar.gz"
+
   upload:
+    runs-on: self-hosted
     outputs:
       artifact_id: ${{ steps.upload.outputs.artifact-id }}
     needs: build
@@ -57,15 +84,15 @@ jobs:
       packages: write
       id-token: write
     steps:
-      - name: Upload docker image artifact to repository
-        id: upload
+      - name: Upload Docker image artifact to repository
+        id: upload_artifact
       - uses: actions/upload-artifact@v4
         with:
           name: $ {{ steps.set-container-name.outputs.container_name }}
-          # verify this path is correct and what is being uploaded here actually is a container
-          path: /var/lib/docker/overlay2/my_jetson_test
+          path: ./image.tar.gz
           retention-days: 21
           if-no-files-found: error
+
       - name: Output artifact ID
         run: |
         echo "artifact_id=${{ steps.upload.outputs.artifact-id }}" >> "$GITHUB_OUTPUT"

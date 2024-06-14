@@ -1,6 +1,5 @@
-name: Deploying Container
+name: Deployment Pipeline
 
-# needs approval by employee
 on:
   workflow_call:
     inputs:
@@ -13,30 +12,26 @@ on:
         type: bool
         default: true
       container_name:
-        required: true
+        required: false
         type: string
       artifact_id:
-        required: true
+        required: false
+        type: string
+      comments:
+        required: false
         type: string
 
   workflow_dispatch:
     inputs: 
-      performance-test:
-        description: 'Would you like to run a performance test on the container?'
-        required: false
-        default: true
-        type: boolean
-      deployment:
-        description: 'Would you like to review the performance report before updating the official image?'
-        required: false
-        default: true
-        type: boolean
-      container_name:
-        description: 'Name of the container to deploy (use latest if unsure): '
-        required: false
-        type: string
-      artifact_id:
-        description: 'Artifact ID to use (use latest if unsure): '
+      source:
+        description: 'Would you like to use a remote or local source?'
+        required: true
+        type: choice
+        choices:
+          - remote
+          - local
+      identifier:
+        description: 'Enter the container image/Artifact ID if remote (ex. latest, id, artifact_id)'
         required: false
         type: string
       emulation:
@@ -45,36 +40,40 @@ on:
         type: boolean
         default: false
 
-defaults:
-  run:
-    shell: bash
-
-env:
-  REGISTRY: dockerhub.io
-  IMAGE_NAME: ${{ github.repository }}
-
-# something must be set so we know what to run
 jobs:
   staging:
-    runs-on: nvidia-jetson
+    runs-on: self-hosted
     permissions:
       packages: read
     outputs:
+      identifier: ${{ steps.find-source.outputs.identifier }}
       artifact_id: ${{ steps.set-artifact-id.outputs.artifact_id }}
     steps:
-      - name: Pull latest package from Github repository if not provided
-      id: set-artifact-id
+      - name: Determine staging source
+      id: find-source
       run: |
-        if [ -z "${{ github.event.inputs.artifact_id }}" ]; then
-          echo "artifact_id=$(gh api -X GET /repos/${{ github.repository }}/actions/artifacts | jq -r '.artifacts[0].id')" >> $GITHUB_ENV
-          echo "artifact_id=${{ env.artifact_id }}" >> $GITHUB_OUTPUT
-        else
-          echo "artifact_id=${{ github.event.inputs.artifact_id }}" >> $GITHUB_OUTPUT
+        if [ -z "${{ github.events.inputs.source }}"]; then
+          echo "container_name=$container_name" >> $GITHUB_ENV
+          echo "::set-output name=container_name::$SOURCE"
+          echo "SOURCE=local" >> $GITHUB_ENV
+          echo "::set-output name="
         fi
+        ~/Container/find.sh ${{ github_eve }} ${{  }} ${{  }}
+        echo "source found: "
+
+      - name: Load Container
+
+      - name: Load Artifact
+
+      - name: Download Container
+
+      - name: Download Artifact
+
       - name: Download artifact
         uses: actions/download-artifact@v2
         with:
           name: ${{ steps.set-artifact-id.outputs.artifact_id }}
+    
       - name: Display structure of downloaded files
         run: ls -R your/destination/dir
       - name: Load Docker image from artifact
@@ -86,6 +85,7 @@ jobs:
 
       - name: Create QEMU container 
 
+  # call benchmkaring separately 
   benchmarking:
     needs: [staging]
     runs-on: nvidia-jetson
@@ -107,6 +107,7 @@ jobs:
     permissions:
       id-token: write
       checks: write
+    environment: production
     steps:
       - name: Login to Docker Registry ${{ env.REGISTRY }}
         uses: docker/login-action@v2.1.0
@@ -148,6 +149,11 @@ jobs:
         context: .
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Activate setup
+      run: |
+      cd ~/Container/
+      docker-compose up
 
   explore:
     runs-on: nvidia-jetson

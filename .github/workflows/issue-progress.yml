@@ -1,30 +1,47 @@
 name: Issue Progress Reporting
+
 on:
   workflow_call:
-      inputs:
-        status:
-          required: true
-          type: string
-  workflow_dispatch:
-    # enter separate questions here...
-    inputs: 
-      status:
+    inputs:
+      message:
         required: true
-        type: choice
-        options:
-        - error
-
+        type: string
+  workflow_dispatch:
+    inputs: 
+      message:
+        required: true
+        type: string
 
 jobs:
   label_issues:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     permissions:
       issues: write
     steps:
-      - run: gh issue create --title "My new issue" --body "Here are more details."
-      - run: gh issue edit "$NUMBER" --add-label "$LABELS"
+      - name: Get run number
+        run: echo "RUN_NUMBER=${{ github.run_number }}" >> $GITHUB_ENV
+
+      - name: Get container/artifact ID
+        run: echo "CONTAINER_ID=$(cat container_id.txt)" >> $GITHUB_ENV
+        # Assume container_id.txt contains the ID. Adjust as necessary for your case.
+
+      - name: Get benchmarking summary
+        run: |
+          SUMMARY=$(cat benchmark_summary.txt)
+          echo "BENCHMARK_SUMMARY=$SUMMARY" >> $GITHUB_ENV
+        # Assume benchmark_summary.txt contains the summary. Adjust as necessary for your case.
+
+      - name: Create GitHub issue
+        run: |
+          ISSUE_TITLE="Run #${{ env.RUN_NUMBER }} - Container Image/Artifact ID: ${{ env.CONTAINER_ID }}"
+          ISSUE_BODY="### Benchmarking Summary\n${{ env.BENCHMARK_SUMMARY }}"
+          gh issue create --title "$ISSUE_TITLE" --body "$ISSUE_BODY"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_REPO: ${{ github.repository }}
-          NUMBER: ${{ github.event.issue.number }}
-          LABELS: triage
+
+      - name: Add label to issue
+        run: |
+          ISSUE_NUMBER=$(gh issue list --limit 1 --json number --jq '.[0].number')
+          gh issue edit "$ISSUE_NUMBER" --add-label "needs approval to deploy"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,5 +1,5 @@
 # Merge PR Accepted or Manual Trigger
-name: Integration
+name: Integration Pipeline
 
 on:
   # pushes to master cannot occur without merge PR being accepted
@@ -19,18 +19,14 @@ on:
         default: true
         type: bool
       deployment: 
-        description: 'Would you like to review the performance report before updating the official image?'
+        description: 'Would you like to update the official image?'
         required: false
         default: true
         type: bool
       comments:
-        description: 'Add any comments which can be added as annotations to the workflow run and container image/test reports'
+        description: 'Add any comments which can be added to identify to the workflow run and container image/test reports'
         required: false
         type: string
-
-defaults:
-  run:
-    shell: bash
 
 jobs:
   copying_branch:
@@ -63,7 +59,8 @@ jobs:
       
     uses: ./github/workflows/deployment.yml
     with:
-      performance-test: ${{ github.event.inputs.performance-test }}
-      deployment: ${{ github.event.inputs.deployment }}
-      container_name: ${{ needs.delivery.outputs.container_name }}
-      artifact_id: ${{ needs.delivery.outputs.artifact_id }}
+      performance-test: ${{ github.event.inputs.performance-test}}
+      deployment: ${{ github.event.inputs.deployment}}
+      container_name: ${{ needs.delivery.outputs.container_name}}
+      artifact_id: ${{ needs.delivery.outputs.artifact_id}}
+      comments: ${{ github.event.inputs.comments}}

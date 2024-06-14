@@ -1,0 +1,12 @@
+delivery:
+  runs-on: nvidia-jetson
+  needs: copying_branch
+  outputs:
+    container_name: ${{ steps.delivery.outputs.container_name }}
+    artifact_id: ${{ steps.delivery.outputs.artifact_id }}
+  steps:
+    - name: Call delivery workflow
+      id: delivery
+      uses: ./.github/workflows/delivery.yml
+      with:
+        branch: ${{ github.event.inputs.branch || 'main' }}
