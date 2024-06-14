@@ -1,5 +1,5 @@
 # docker pull nvcr.io/nvidia/l4t-jetpack:r35.3.1
-FROM JetPack-L4T:latest
+FROM jetpack:latest
 
 # not sure if cuda version is matched... https://github.com/dusty-nv/jetson-containers/blob/master/packages/cuda/cuda/config.py
 ENV CUDA_VERSION=12.2.0 
@@ -21,7 +21,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
 
 RUN /scripts/build-essential.sh
 
-COPY tarpack /usr/local/bin/
+COPY /scripts/tarpack /usr/local/bin/
 
 # python 3.8.10
 ENV PYTHON_VERSION=3.8 \

@@ -1,3 +1,5 @@
+version: '3.7'
+
 services:
   mydb:
     image: postgres:15
@@ -14,12 +16,21 @@ services:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
     ports:
       - "9090:9090"
+    depends_on:
+      - node-exporter
+      - model
   
   node-exporter:
     image: prom/node-exporter:latest
     ports:
       - "9100:9100"
-
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+    
   grafana:
     image: grafana/grafana:latest
     ports:
@@ -28,8 +39,9 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=admin
     volumes:
       - ./grafana/grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+    depends_on:
+      - prometheus
     
   model:
-    image: model:latest
-    volumes:
-    - ./shared-data:/shared-data
+    image: jetson:latest
