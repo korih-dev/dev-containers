@@ -1,0 +1,112 @@
+version: '3.8'
+
+services:
+  base-cpu:
+    image: agrobotappliedai/mlcontainer-cpu:latest
+    command: "${COMMAND:-/bin/sh}"
+    container_name: cpu-ml-container
+    labels: 
+      - 'monitor=true'
+    volumes:
+      - ./workspace:/workspace
+    environment:
+      - WANDB_API_KEY=your-api-key
+      - WANDB_BASE_URL=http://localhost:8080
+    network_mode: host
+    profiles: [cpu, cpu-benchmarking, cpu-wandb, cpu-full]
+  
+  base-gpu:
+    image: agrobotappliedai/mlcontainer-gpu:latest
+    command: "${COMMAND:-/bin/sh}"
+    container_name: gpu-ml-container
+    labels:  
+      - 'monitor=true'
+    volumes:
+      - ./workspace:/workspace
+    environment:
+      - WANDB_API_KEY=your-api-key
+      - WANDB_BASE_URL=http://localhost:8080
+    network_mode: host
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    shm_size: 1gb
+    profiles: [gpu, gpu-benchmarking, gpu-wandb, gpu-full]
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    ports:
+      - "9090:9090"
+    network_mode: host
+    profiles: [cpu-benchmarking, cpu-full, gpu-benchmarking, gpu-full]
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    user: "104"
+    depends_on:
+      - prometheus
+    volumes:
+      - ./grafana/provisioning/:/etc/grafana/provisioning/
+      - grafana_storage:/var/lib/grafana
+    env_file:
+      - ./grafana/config.monitoring
+    ports:
+      - "3000:3000"
+    network_mode: host
+    profiles: [cpu-benchmarking, cpu-full, gpu-benchmarking, gpu-full]
+
+  cadvisor:
+    image: google/cadvisor:latest
+    container_name: cadvisor
+    volumes:
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    ports:
+      - "8081:8080"
+    network_mode: host
+    command: 
+      - '--docker_only' 
+      - '--docker_labels=monitor=true'
+    profiles: [cpu-benchmarking, cpu-full, gpu-benchmarking, gpu-full]
+  
+  wandb-local:
+    image: wandb/local:latest
+    container_name: wandb-local
+    ports:
+      - "8080:8080"
+    network_mode: host
+    profiles: [cpu-wandb, cpu-full, gpu-wandb, gpu-full]
+
+  # necessary for host-level metrics
+  # node-exporter:
+  #   image: prom/node-exporter
+  #   container_name: node-exporter
+  #   volumes:
+  #     - /proc:/host/proc:ro
+  #     - /sys:/host/sys:ro
+  #   command: 
+  #     - '--path.procfs=/host/proc' 
+  #     - '--path.sysfs=/host/sys'
+  #     - --collector.filesystem.ignored-mount-points
+  #     - "^/(sys|proc|dev|host|etc|rootfs/var/lib/docker/containers|rootfs/var/lib/docker/overlay2|rootfs/run/docker/netns|rootfs/var/lib/docker/aufs)($$|/)"
+  #   ports:
+  #     - 9100:9100
+
+volumes:
+    prometheus_data: {}
+    grafana_storage: {}
