@@ -1,9 +1,6 @@
-version: '3.8'
-
 services:
   base-cpu:
-    image: agrobotappliedai/mlcontainer-cpu:latest
-    command: "${COMMAND:-/bin/sh}"
+    image: agrobotappliedai/mlcontainers-cpu:latest
     container_name: cpu-ml-container
     labels: 
       - 'monitor=true'
@@ -12,11 +9,12 @@ services:
     environment:
       - WANDB_API_KEY=your-api-key
       - WANDB_BASE_URL=http://localhost:8080
-    network_mode: host
+    ports:
+      - "8888:8888"
     profiles: [cpu, cpu-benchmarking, cpu-wandb, cpu-full]
   
   base-gpu:
-    image: agrobotappliedai/mlcontainer-gpu:latest
+    image: agrobotappliedai/mlcontainers-gpu:latest
     command: "${COMMAND:-/bin/sh}"
     container_name: gpu-ml-container
     labels:  
@@ -50,7 +48,6 @@ services:
       - '--web.console.templates=/usr/share/prometheus/consoles'
     ports:
       - "9090:9090"
-    network_mode: host
     profiles: [cpu-benchmarking, cpu-full, gpu-benchmarking, gpu-full]
 
   grafana:
@@ -66,7 +63,6 @@ services:
       - ./grafana/config.monitoring
     ports:
       - "3000:3000"
-    network_mode: host
     profiles: [cpu-benchmarking, cpu-full, gpu-benchmarking, gpu-full]
 
   cadvisor:
@@ -78,7 +74,6 @@ services:
       - /var/lib/docker/:/var/lib/docker:ro
     ports:
       - "8081:8080"
-    network_mode: host
     command: 
       - '--docker_only' 
       - '--docker_labels=monitor=true'
@@ -89,7 +84,6 @@ services:
     container_name: wandb-local
     ports:
       - "8080:8080"
-    network_mode: host
     profiles: [cpu-wandb, cpu-full, gpu-wandb, gpu-full]
 
   # necessary for host-level metrics

@@ -42,5 +42,5 @@ RUN pip3 install --upgrade --no-cache-dir --verbose \
 # Expose port for Jupyter Notebook
 EXPOSE 8888
 
-# Set the default command to run shell
-CMD ["/bin/bash"]
+# Set the default command to run jupyter notebook
+CMD ["jupyter", "notebook", "--ip=0.0.0.0", "--port=8888", "--no-browser", "--allow-root"]
