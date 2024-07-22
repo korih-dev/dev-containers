@@ -57,4 +57,4 @@ RUN pip install --no-cache-dir \
 EXPOSE 8888
 
 # Set the default command to run shell
-CMD ["/bin/bash"]
+CMD ["jupyter", "notebook", "--ip=0.0.0.0", "--port=8888", "--no-browser", "--allow-root"]
