@@ -3,7 +3,7 @@ set -ex
 
 echo 'installing build-essential'
 
-apt-get update 
+apt -y update && apt -y upgrade
 apt-get install -y --no-install-recommends
     locales \
     locales-all \

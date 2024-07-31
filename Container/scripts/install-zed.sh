@@ -4,8 +4,8 @@ set -ex
 echo 'installing ZED SDK'
 
 apt-get update -y || true ; apt-get install --no-install-recommends lsb-release wget less zstd udev sudo apt-transport-https -y
-echo "# R${L4T_MAJOR_VERSION} (release), REVISION: ${L4T_MINOR_VERSION}.${L4T_PATCH_VERSION}" > /etc/nv_tegra_release ;
-wget -q --no-check-certificate -O ZED_SDK_Linux.run https://download.stereolabs.com/zedsdk/${ZED_SDK_MAJOR}.${ZED_SDK_MINOR}/l4t${L4T_MAJOR_VERSION}.${L4T_MINOR_VERSION}/jetsons
+echo "# R36 (release), REVISION: 3.0" > /etc/nv_tegra_release ;
+wget -q --no-check-certificate -O ZED_SDK_Linux.run https://download.stereolabs.com/zedsdk/4.1/l4t36.3/jetsons
 chmod +x ZED_SDK_Linux.run ; ./ZED_SDK_Linux.run silent skip_drivers
 rm -rf /usr/local/zed/resources/* 
 rm -rf ZED_SDK_Linux.run
